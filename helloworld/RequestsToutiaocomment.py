@@ -75,7 +75,6 @@ def write_json(result):
 
 def insert_mysql(result):
     try:
-
         sql_in = "insert into toutiaocomment(title,tags,comments,url) VALUES(%s,%s,%s,%s) ON DUPLICATE KEY UPDATE comments=VALUES(comments)"
         cursor.execute(
             sql_in, (result['title'], result['tags'], result['comments'], result['url']))
