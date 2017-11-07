@@ -4,7 +4,24 @@ import urllib.request
 from queue import Queue
 from threading import Thread
 
-depth = 10000
+depth = 20
+prohibit = (  # images
+    'mng', 'pct', 'bmp', 'gif', 'jpg', 'jpeg', 'png', 'pst', 'psp', 'tif',
+    'tiff', 'ai', 'drw', 'dxf', 'eps', 'ps', 'svg',
+
+    # audio
+    'mp3', 'wma', 'ogg', 'wav', 'ra', 'aac', 'mid', 'au', 'aiff',
+
+    # video
+    '3gp', 'asf', 'asx', 'avi', 'mov', 'mp4', 'mpg', 'qt', 'rm', 'swf', 'wmv',
+    'm4a',
+
+    # office suites
+    'xls', 'xlsx', 'ppt', 'pptx', 'pps', 'doc', 'docx', 'odt', 'ods', 'odg',
+    'odp',
+
+    # other
+    'css', 'pdf', 'exe', 'bin', 'rss', 'zip', 'rar',)
 
 
 class DownloadThread(Thread):
@@ -51,17 +68,10 @@ class DownloadThread(Thread):
 
     def find_mails(self, string):
         # mails列表
-        patt = r"( [-.\w]+?@[-.\w]+?\.\w+ |mailto:[-.\w]+?@[-.\w]+?\.\w+)"
-        res = []
-        for match in re.findall(patt, string, re.S):
-            m = re.sub(r'\s|mailto:', '', match)
+        res = [re.sub(r'\s|mailto:', '', match) for match in
+               re.findall(r'[-.\w]+?@[-.\w]+?\.\w+ |mailto:[-.\w]+?@[-.\w]+?\.\w+', string, re.S) if
+               not match.endswith(prohibit)]
 
-            if m.endswith(('.jpg', '.png', '.gif', '.pdf', '.jpeg', '.css', '.js', '.mp3', '.mp4', '.zip', '.mov',
-                           '.cgi', '.asp', '.php', '.aspx', '.exe')):
-                continue
-            else:
-                print("\t Found mail: " + m)
-                res.append(m)
         return res
 
     def find_sites(self, string):
@@ -75,8 +85,7 @@ class DownloadThread(Thread):
             m = m.replace("\"", "")
 
             not_allowed = False
-            if m.endswith(('.jpg', '.png', '.gif', '.pdf', '.jpeg', '.css', '.js', '.mp3', '.mp4', '.zip', '.mov',
-                           '.cgi', '.asp', '.php', '.aspx', '.exe')):
+            if m.endswith(prohibit):
                 not_allowed = True
             if not_allowed is False and m.find("=") == -1 and m.find("?") == -1:
                 res.append(m)
