@@ -20,7 +20,7 @@ prohibit = (  # images
     'odp',
 
     # other
-    'css', 'pdf', 'exe', 'bin', 'rss', 'zip', 'rar',)
+    'css', 'pdf', 'exe', 'bin', 'rss', 'zip', 'rar', 'py', 'asp', 'php', 'aspx', 'exe')
 mails = set()
 sites = set()
 
@@ -36,8 +36,12 @@ async def parse_html(url):
     mails.update(await find_mails(page))
     sites.update(await find_sites(page))
     print(mails)
-    while len(mails) < 2000:
-        await parse_html(sites.pop())
+    loop1 = asyncio.get_event_loop()
+    task1 = [parse_html(url) for url in sites]
+    loop1.run_until_complete(asyncio.wait(task1))
+
+    # while len(mails) < 2000:
+    #     await parse_html(sites.pop())
 
 
 async def find_mails(string):
@@ -51,15 +55,20 @@ async def find_mails(string):
 
 async def find_sites(string):
     # urls列表
-    res = [match for match in re.findall(
-        r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9]\.[^\s]{2,})',
-        string, re.S) if not match.strip().endswith(prohibit)]
+    res = []
+    for match in re.findall(
+            r'(https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9][a-zA-Z0-9-]+[a-zA-Z0-9]\.[^\s]{2,}|https?:\/\/(?:www\.|(?!www))[a-zA-Z0-9]\.[^\s]{2,}|www\.[a-zA-Z0-9]\.[^\s]{2,})',
+            string, re.S):
+        url = re.sub(r'["\s>]', '', match)
+        if not url.endswith(prohibit):
+            res.append(url)
 
     return res
 
 
 def main():
-    tasks = [parse_html(url) for url in ('https://www.douban.com/group/topic/86942298/',)]
+    tasks = [parse_html(url) for url in
+             ('https://github.com/kof0012/Winwopy/blob/master/helloworld/async_crawler_email.py',)]
     loop = asyncio.get_event_loop()
     loop.run_until_complete(asyncio.wait(tasks))
     loop.close()
