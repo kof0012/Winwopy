@@ -36,12 +36,8 @@ async def parse_html(url):
     mails.update(await find_mails(page))
     sites.update(await find_sites(page))
     print(mails)
-    loop1 = asyncio.get_event_loop()
-    task1 = [parse_html(url) for url in sites]
-    loop1.run_until_complete(asyncio.wait(task1))
+    task = [asyncio.ensure_future(parse_html(url)) for url in sites]
 
-    # while len(mails) < 2000:
-    #     await parse_html(sites.pop())
 
 
 async def find_mails(string):
@@ -68,7 +64,7 @@ async def find_sites(string):
 
 def main():
     tasks = [parse_html(url) for url in
-             ('https://github.com/kof0012/Winwopy/blob/master/helloworld/async_crawler_email.py',)]
+             ('http://www.sohu.com',)]
     loop = asyncio.get_event_loop()
     loop.run_until_complete(asyncio.wait(tasks))
     loop.close()
@@ -77,4 +73,3 @@ def main():
 if __name__ == '__main__':
     main()
 
-s = r'#\b(([\w-]+://?|www[.])[^\s()<>]+(?:\([\w\d]+\)|([^[:punct:]\s]|/)))#iS'
