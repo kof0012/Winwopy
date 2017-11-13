@@ -307,6 +307,7 @@ class Crawler:
             w.cancel()
 
 
+# giv tasks and loop
 loop = asyncio.get_event_loop()
 zhua = Crawler(["hhttps://www.douban.com/group/topic/41562980/?start=500",
                 "https://www.douban.com/event/14146775/discussion/40108760/", 'http://tieba.baidu.com/p/3934726472'],
