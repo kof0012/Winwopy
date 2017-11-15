@@ -13,6 +13,8 @@ import aiohttp
 logging.basicConfig(level=1)
 
 LOGGER = logging.getLogger(__name__)
+
+
 def lenient_host(host):
     parts = host.split('.')[-2:]
     return ''.join(parts)
@@ -166,9 +168,9 @@ class Crawler:
 
                 new_cathcmails = await self.find_mails(text)
                 if new_cathcmails:
-                    write_to_txt=new_cathcmails.difference(self.findmails)
+                    write_to_txt = new_cathcmails.difference(self.findmails)
                     self.findmails.update(new_cathcmails)
-                    LOGGER.info('拿到新email地址 %r',write_to_txt)
+                    LOGGER.info('拿到新email地址 %r', write_to_txt)
                     await self.write(write_to_txt)
 
         stat = FetchStatistic(
@@ -184,21 +186,23 @@ class Crawler:
 
         return stat, links
 
-    async def fetch(self, url, max_redirect,proxy=None):
+    async def fetch(self, url, max_redirect, proxy=None):
         """Fetch one URL."""
         tries = 0
         exception = None
         while tries < self.max_tries:
             try:
                 response = await self.session.get(
-                    url,  headers={'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'},
-                    allow_redirects=False,proxy=proxy)
+                    url,  headers={
+                        'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'},
+                    allow_redirects=False, proxy=proxy)
 
                 if tries > 1:
                     LOGGER.info('try %r for %r success', tries, url)
                 break
             except aiohttp.ClientError as client_error:
-                LOGGER.info('try %r for %r raised %r', tries, url, client_error)
+                LOGGER.info('try %r for %r raised %r',
+                            tries, url, client_error)
                 exception = client_error
 
             tries += 1
@@ -240,12 +244,12 @@ class Crawler:
                     LOGGER.error('redirect limit reached for %r from %r',
                                  next_url, url)
 
-            elif response.status in (302,403):
-                LOGGER.info('302,403出现 %r,%r',response.status, url)
-                getproxy=await self.get_proxy()
+            elif response.status in (302, 403):
+                LOGGER.info('302,403出现 %r,%r', response.status, url)
+                getproxy = await self.get_proxy()
                 if getproxy:
                     LOGGER.info('使用代理 %r', getproxy)
-                    return await self.fetch(url,max_redirect,proxy=getproxy)
+                    return await self.fetch(url, max_redirect, proxy=getproxy)
                 else:
                     LOGGER.info('获取代理失败')
                     return
@@ -308,18 +312,18 @@ class Crawler:
                 f.write(iq + '\r\n')
 
     async def get_proxy(self):
-        proxy_url="http://127.0.0.1:5000/get"
+        proxy_url = "http://127.0.0.1:5000/get"
         try:
-           
-            response=await self.session.get(proxy_url)
-            if response.status==200:
+
+            response = await self.session.get(proxy_url)
+            if response.status == 200:
                 return await response.text()
-            elif response.status==500:
+            elif response.status == 500:
                 LOGGER.info("IPpool iS EMPTY!!!wait 1 min")
                 time.sleep(60)
                 return await self.get_proxy()
 
-        except :
+        except:
             return await self.get_proxy()
 
     async def crawl(self):
@@ -340,10 +344,7 @@ loop = asyncio.get_event_loop()
 zhua = Crawler(["https://www.douban.com/group/topic/41562980/?start=500",
                 "https://www.douban.com/event/14146775/discussion/40108760/", 'http://tieba.baidu.com/p/3934726472'],
                max_tasks=5, strict=False)
-# zhua2 = Crawler(["https://www.dajie.com/group/1054/topic/1911609?f=hottopic",
-#                 "http://sj.zuojiaju.com/thread-757812-1-1.html"],
-#                max_tasks=5, strict=False)
-# jobs=[zhua.crawl(),zhua2.crawl()]
+
 loop.run_until_complete(zhua.crawl())
 print('完成了{0}个链接，花费{1:.3f}时间'.format(len(zhua.done), zhua.t1 - zhua.t0))
 zhua.close()
