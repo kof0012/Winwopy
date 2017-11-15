@@ -10,17 +10,16 @@ from asyncio import Queue
 from collections import namedtuple
 
 import aiohttp
+logging.basicConfig(level=1)
 
 LOGGER = logging.getLogger(__name__)
-
-
 def lenient_host(host):
     parts = host.split('.')[-2:]
     return ''.join(parts)
 
 
 def is_redirect(response):
-    return response.status in (300, 301, 302, 303, 307)
+    return response.status in (300, 301, 303, 307)
 
 
 FetchStatistic = namedtuple('FetchStatistic',
@@ -62,7 +61,7 @@ class Crawler:
 
     def __init__(self, roots,
                  exclude=None, strict=False,  # What to crawl.
-                 max_redirect=10, max_tries=4,  # Per-url limits.
+                 max_redirect=5, max_tries=4,  # Per-url limits.
                  max_tasks=100, *, loop=None):
         self.loop = loop or asyncio.get_event_loop()
         self.roots = roots
@@ -167,8 +166,10 @@ class Crawler:
 
                 new_cathcmails = await self.find_mails(text)
                 if new_cathcmails:
+                    write_to_txt=new_cathcmails.difference(self.findmails)
                     self.findmails.update(new_cathcmails)
-                    await self.write(new_cathcmails.difference(self.findmails))
+                    LOGGER.info('拿到新email地址 %r',write_to_txt)
+                    await self.write(write_to_txt)
 
         stat = FetchStatistic(
             url=response.url,
@@ -183,15 +184,15 @@ class Crawler:
 
         return stat, links
 
-    async def fetch(self, url, max_redirect):
+    async def fetch(self, url, max_redirect,proxy=None):
         """Fetch one URL."""
         tries = 0
         exception = None
         while tries < self.max_tries:
             try:
                 response = await self.session.get(
-                    url, headers={'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'},
-                    allow_redirects=False)
+                    url,  headers={'User-Agent': 'Mozilla/4.0 (compatible; MSIE 5.5; Windows NT)'},
+                    allow_redirects=False,proxy=proxy)
 
                 if tries > 1:
                     LOGGER.info('try %r for %r success', tries, url)
@@ -238,6 +239,17 @@ class Crawler:
                 else:
                     LOGGER.error('redirect limit reached for %r from %r',
                                  next_url, url)
+
+            elif response.status in (302,403):
+                LOGGER.info('302,403出现 %r,%r',response.status, url)
+                getproxy=await self.get_proxy()
+                if getproxy:
+                    LOGGER.info('使用代理 %r', getproxy)
+                    return await self.fetch(url,max_redirect,proxy=getproxy)
+                else:
+                    LOGGER.info('获取代理失败')
+                    return
+
             else:
                 stat, links = await self.parse_links(response)
                 self.record_statistic(stat)
@@ -252,7 +264,7 @@ class Crawler:
     async def work(self):
         """Process queue items forever."""
         try:
-            while True:
+            while 1:
                 url, max_redirect = await self.q.get()
                 assert url in self.seen_urls
                 await self.fetch(url, max_redirect)
@@ -291,9 +303,24 @@ class Crawler:
         return res
 
     async def write(self, data):
-        with open('e-mail-crawler-master.txt', 'w') as f:
+        with open('e-mail-crawler-master.txt', 'a') as f:
             for iq in data:
                 f.write(iq + '\r\n')
+
+    async def get_proxy(self):
+        proxy_url="http://127.0.0.1:5000/get"
+        try:
+           
+            response=await self.session.get(proxy_url)
+            if response.status==200:
+                return await response.text()
+            elif response.status==500:
+                LOGGER.info("IPpool iS EMPTY!!!wait 1 min")
+                time.sleep(60)
+                return await self.get_proxy()
+
+        except :
+            return await self.get_proxy()
 
     async def crawl(self):
         """Run the crawler until all finished."""
@@ -303,15 +330,20 @@ class Crawler:
         await self.q.join()
 
         self.t1 = time.time()
-        for w in workers:
+        # for w in workers:
+        for w in asyncio.Task.all_tasks():
             w.cancel()
 
 
 # giv tasks and loop
 loop = asyncio.get_event_loop()
-zhua = Crawler(["hhttps://www.douban.com/group/topic/41562980/?start=500",
+zhua = Crawler(["https://www.douban.com/group/topic/41562980/?start=500",
                 "https://www.douban.com/event/14146775/discussion/40108760/", 'http://tieba.baidu.com/p/3934726472'],
                max_tasks=5, strict=False)
+# zhua2 = Crawler(["https://www.dajie.com/group/1054/topic/1911609?f=hottopic",
+#                 "http://sj.zuojiaju.com/thread-757812-1-1.html"],
+#                max_tasks=5, strict=False)
+# jobs=[zhua.crawl(),zhua2.crawl()]
 loop.run_until_complete(zhua.crawl())
 print('完成了{0}个链接，花费{1:.3f}时间'.format(len(zhua.done), zhua.t1 - zhua.t0))
 zhua.close()
