@@ -126,7 +126,9 @@ class Myasycatch:
         workers = [asyncio.ensure_future(self.worker(), loop=self.loop) for _ in range(self.max_workers)]
         await self.q.join()
         LOGGER.info('队列完成，共计%r', self.jobs_count)
-        print('已经停止全部work？', asyncio.gather(*asyncio.Task.all_tasks(loop=self.loop)).cancel())
+        for w in workers:
+            w.cancel()
+        # print('已经停止全部work？', asyncio.gather(*asyncio.Task.all_tasks(loop=self.loop)).cancel())
         print('已经停止aiohttp？', self.session.close())
 
 
