@@ -27,7 +27,7 @@ class Myasycatch:
         self.db = pymongo.MongoClient().test
         self.jobs_count = 0
         for root_url in roots_url:
-            self.add_url(root_url)
+            self.q.put_nowait(root_url)
 
     async def get(url):
         async with  aiohttp.ClientSession() as session:
@@ -67,8 +67,8 @@ class Myasycatch:
             else:
                 links = await self.parse_url(response)
                 for link in links:
-                    if not self.bloom.isContains(link):
-                        self.add_url(link)
+                    if not await self.bloom.isContains(link):
+                        await self.add_url(link)
 
         except:
             await response.release()
@@ -108,9 +108,9 @@ class Myasycatch:
         except:
             return await self.get_proxy()
 
-    def add_url(self, url):
+    async def add_url(self, url):
         self.q.put_nowait(url)
-        self.bloom.insert(url)
+        await self.bloom.insert(url)
         LOGGER.info('加入url %r', url)
 
     async def worker(self):
@@ -129,7 +129,7 @@ class Myasycatch:
         for w in workers:
             w.cancel()
         # print('已经停止全部work？', asyncio.gather(*asyncio.Task.all_tasks(loop=self.loop)).cancel())
-        print('已经停止aiohttp？', self.session.close())
+            # print('已经停止aiohttp？', self.session.close())
 
 
 loop = asyncio.get_event_loop()
